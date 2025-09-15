@@ -117,30 +117,39 @@ export default function InvoiceGenerator() {
 
   const generatePDF = async () => {
     const element = document.getElementById('invoice-preview');
+    // Remove fixed width/height, let html2canvas use actual element size
     const canvas = await html2canvas(element, {
-      scale: 1.5,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: 794, // A4 width in pixels at 96 DPI
-      height: 1123 // A4 height in pixels at 96 DPI
+      backgroundColor: '#ffffff'
     });
-    
+
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    // Calculate dimensions to fit the page properly
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = Math.min(pdfWidth / (imgWidth * 0.264583), pdfHeight / (imgHeight * 0.264583));
-    const finalWidth = imgWidth * 0.264583 * ratio;
-    const finalHeight = imgHeight * 0.264583 * ratio;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, finalWidth, finalHeight);
+
+    // Convert canvas size from px to mm (1px = 0.264583 mm)
+    const imgWidthMm = canvas.width * 0.264583;
+    const imgHeightMm = canvas.height * 0.264583;
+
+    // Center image and scale to fit A4
+  let renderWidth = imgWidthMm;
+  let renderHeight = imgHeightMm;
+  let x = (pdfWidth - renderWidth) / 2;
+  let y = 0; // Always start at the top of the page
+  const widthRatio = pdfWidth / imgWidthMm;
+  const heightRatio = pdfHeight / imgHeightMm;
+  const ratio = Math.min(widthRatio, heightRatio, 1);
+  renderWidth = imgWidthMm * ratio;
+  renderHeight = imgHeightMm * ratio;
+  x = (pdfWidth - renderWidth) / 2;
+  // y = 0; // Remove vertical centering
+
+  pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
     pdf.save(`${invoice.invoiceNumber}.pdf`);
-    
+
     // Auto refresh and increment invoice number after PDF download
     setTimeout(() => {
       window.location.reload();
